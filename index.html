@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Selling Tracker</title>
+<meta name="theme-color" content="#1a1a1a" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icon-192.png" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --surface: #242322;
+    --surface-2: #2c2b29;
+    --border: #3a3937;
+    --text: #f2efe9;
+    --text-secondary: #a8a49c;
+    --text-muted: #75726b;
+    --accent: #e8927c;
+    --accent-text: #3a1a10;
+    --pink: #d4537e;
+    --coral: #d85a30;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    margin: 20px 0 16px;
+  }
+  #sync-status {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: -8px 0 16px;
+  }
+  #sync-status.error { color: var(--coral); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+  .stat-card p:first-child {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 4px;
+  }
+  .stat-card p:last-child {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .form-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .form-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    margin: 0 0 14px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  input, select, button {
+    font-family: inherit;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 0.5px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 10px 12px;
+    height: 42px;
+    width: 100%;
+  }
+  input::placeholder { color: var(--text-muted); }
+  select { appearance: none; }
+  button {
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button:active { transform: scale(0.98); }
+  #photo-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  #photo-preview {
+    width: 20px; height: 20px;
+    object-fit: cover;
+    border-radius: 4px;
+    display: none;
+  }
+  #add-btn {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    font-weight: 600;
+  }
+  .entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .entry-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .thumb {
+    width: 36px; height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    flex-shrink: 0;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge.tiddies { background: rgba(212,83,126,0.18); color: #f0a7c1; }
+  .badge.gyatt { background: rgba(216,90,48,0.18); color: #f0a07b; }
+  .badge.others { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+  .entry-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .entry-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+  .entry-right { text-align: right; white-space: nowrap; }
+  .entry-price { font-size: 14px; font-weight: 600; margin: 0; }
+  .entry-profit { font-size: 11px; color: var(--text-muted); margin: 2px 0 0; }
+  .del-btn {
+    width: 30px; height: 30px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 24px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Selling Tracker</h1>
+<p id="sync-status">Connecting…</p>
+
+<div class="stats" id="stats"></div>
+
+<div class="form-card">
+  <h2>Log a Sale</h2>
+  <div class="field-grid">
+    <input id="f-item" placeholder="Item name" />
+    <select id="f-biz">
+      <option value="tiddies.vtg">tiddies.vtg</option>
+      <option value="gyatt.vtg">gyatt.vtg</option>
+      <option value="others">Others</option>
+    </select>
+    <input id="f-price" type="number" step="0.01" placeholder="Sold price" />
+    <input id="f-cost" type="number" step="0.01" placeholder="Cost (optional)" />
+    <select id="f-platform">
+      <option value="Booth" selected>Booth</option>
+      <option value="Carousell">Carousell</option>
+      <option value="Telegram">Telegram</option>
+      <option value="Instagram">Instagram</option>
+      <option value="Others">Others</option>
+    </select>
+    <input id="f-date" type="date" />
+  </div>
+  <button id="photo-btn" type="button">
+    <span id="photo-label">Add photo (optional)</span>
+    <img id="photo-preview" />
+  </button>
+  <input id="f-photo" type="file" accept="image/*" capture="environment" style="display:none;" />
+  <button id="add-btn">Add entry</button>
+</div>
+
+<div id="list"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, deleteDoc, doc,
+  onSnapshot, query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const statusEl = document.getElementById("sync-status");
+let db, salesCol;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  db = getFirestore(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      salesCol = collection(db, "users", user.uid, "sales");
+      statusEl.textContent = "Synced";
+      listenToEntries();
+    }
+  });
+  signInAnonymously(auth).catch((err) => {
+    statusEl.textContent = "Setup needed: " + err.code;
+    statusEl.classList.add("error");
+  });
+} catch (err) {
+  statusEl.textContent = "Add your Firebase config in firebase-config.js";
+  statusEl.classList.add("error");
+}
+
+let entries = [];
+let pendingPhoto = null;
+
+const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const bizClass = (biz) => biz === "tiddies.vtg" ? "tiddies" : biz === "gyatt.vtg" ? "gyatt" : "others";
+
+document.getElementById("f-date").value = todayStr();
+
+function listenToEntries() {
+  const q = query(salesCol, orderBy("date", "desc"));
+  onSnapshot(q, (snap) => {
+    entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    render();
+  }, (err) => {
+    statusEl.textContent = "Sync error: " + err.code;
+    statusEl.classList.add("error");
+  });
+}
+
+function render() {
+  const totalSales = entries.reduce((s, e) => s + Number(e.price || 0), 0);
+  const totalProfit = entries.reduce((s, e) => s + (Number(e.price || 0) - Number(e.cost || 0)), 0);
+
+  document.getElementById("stats").innerHTML = `
+    <div class="stat-card"><p>Items sold</p><p>${entries.length}</p></div>
+    <div class="stat-card"><p>Total sales</p><p>${money(totalSales)}</p></div>
+    <div class="stat-card"><p>Est. profit</p><p>${money(totalProfit)}</p></div>
+  `;
+
+  const list = document.getElementById("list");
+  if (entries.length === 0) {
+    list.innerHTML = `<p class="empty">No sales logged yet. Add your first one above.</p>`;
+    return;
+  }
+
+  list.innerHTML = entries.map((e) => {
+    const profit = Number(e.price || 0) - Number(e.cost || 0);
+    const thumb = e.photo ? `<img class="thumb" src="${e.photo}" />` : "";
+    return `
+      <div class="entry">
+        <div class="entry-left">
+          ${thumb}
+          <span class="badge ${bizClass(e.biz)}">${e.biz}</span>
+          <div style="min-width:0;">
+            <p class="entry-name">${e.item}</p>
+            <p class="entry-meta">${e.date || "no date"}${e.platform ? " · " + e.platform : ""}</p>
+          </div>
+        </div>
+        <div class="entry-right">
+          <p class="entry-price">${money(e.price)}</p>
+          <p class="entry-profit">profit ${money(profit)}</p>
+        </div>
+        <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".del-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await deleteDoc(doc(salesCol, btn.dataset.id));
+    });
+  });
+}
+
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 320;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById("photo-btn").addEventListener("click", () => {
+  document.getElementById("f-photo").click();
+});
+
+document.getElementById("f-photo").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  try {
+    pendingPhoto = await resizeImage(file);
+    const preview = document.getElementById("photo-preview");
+    preview.src = pendingPhoto;
+    preview.style.display = "inline-block";
+    document.getElementById("photo-label").textContent = "Photo added";
+  } catch (e) {}
+});
+
+document.getElementById("add-btn").addEventListener("click", async () => {
+  const item = document.getElementById("f-item").value.trim();
+  const price = document.getElementById("f-price").value;
+  if (!item || !price || !salesCol) return;
+
+  await addDoc(salesCol, {
+    item,
+    biz: document.getElementById("f-biz").value,
+    price: parseFloat(price),
+    cost: parseFloat(document.getElementById("f-cost").value) || 0,
+    platform: document.getElementById("f-platform").value,
+    date: document.getElementById("f-date").value || todayStr(),
+    photo: pendingPhoto || null,
+    createdAt: serverTimestamp()
+  });
+
+  document.getElementById("f-item").value = "";
+  document.getElementById("f-price").value = "";
+  document.getElementById("f-cost").value = "";
+  document.getElementById("f-platform").value = "Booth";
+  document.getElementById("f-date").value = todayStr();
+  pendingPhoto = null;
+  document.getElementById("photo-preview").style.display = "none";
+  document.getElementById("photo-label").textContent = "Add photo (optional)";
+  document.getElementById("f-photo").value = "";
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
