@@ -1,6 +1,6 @@
 {
-  "name": "Selling Tracker",
-  "short_name": "Sales",
+  "name": ".vtg Tracker",
+  "short_name": ".vtg Tracker",
   "description": "Track sales for tiddies.vtg and gyatt.vtg",
   "start_url": "./index.html",
   "scope": "./",
