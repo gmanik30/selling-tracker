@@ -219,9 +219,76 @@
     font-size: 11px;
     color: var(--text-muted);
   }
+  #auth-screen {
+    display: none;
+    min-height: 80vh;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 8px;
+  }
+  #auth-screen h1 { margin-bottom: 24px; }
+  .auth-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .auth-card input {
+    margin-bottom: 10px;
+  }
+  #auth-error {
+    display: none;
+    font-size: 12px;
+    color: var(--coral);
+    text-align: center;
+    margin: 4px 0 10px;
+  }
+  #auth-signin {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  #auth-signup {
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    height: auto;
+    padding: 6px;
+  }
+  #app-content { display: none; }
+  #logout-row {
+    text-align: center;
+    margin-top: 24px;
+  }
+  #logout-btn {
+    width: auto;
+    height: auto;
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
+
+<div id="auth-screen">
+  <h1>Selling Tracker</h1>
+  <div class="auth-card">
+    <input id="auth-email" type="email" placeholder="Email" autocomplete="email" />
+    <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" />
+    <p id="auth-error"></p>
+    <button id="auth-signin">Log in</button>
+    <button id="auth-signup" type="button">First time? Create an account</button>
+  </div>
+</div>
+
+<div id="app-content">
 
 <h1>Selling Tracker</h1>
 <p id="sync-status">Connecting…</p>
@@ -259,38 +326,102 @@
 
 <div id="list"></div>
 
+<div id="logout-row">
+  <button id="logout-btn" type="button">Log out</button>
+</div>
+
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getAuth, onAuthStateChanged, signOut,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, deleteDoc, doc,
   onSnapshot, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
+const authScreen = document.getElementById("auth-screen");
+const appContent = document.getElementById("app-content");
+const authError = document.getElementById("auth-error");
+const emailInput = document.getElementById("auth-email");
+const passwordInput = document.getElementById("auth-password");
 const statusEl = document.getElementById("sync-status");
-let db, salesCol;
+let db, auth, salesCol, unsubscribeEntries;
+
+function showAuthError(message) {
+  authError.textContent = message;
+  authError.style.display = "block";
+}
 
 try {
   const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+  auth = getAuth(app);
   db = getFirestore(app);
 
   onAuthStateChanged(auth, (user) => {
     if (user) {
+      authScreen.style.display = "none";
+      appContent.style.display = "block";
       salesCol = collection(db, "users", user.uid, "sales");
       statusEl.textContent = "Synced";
       listenToEntries();
+    } else {
+      authScreen.style.display = "flex";
+      appContent.style.display = "none";
+      if (unsubscribeEntries) unsubscribeEntries();
     }
   });
-  signInAnonymously(auth).catch((err) => {
-    statusEl.textContent = "Setup needed: " + err.code;
-    statusEl.classList.add("error");
-  });
 } catch (err) {
-  statusEl.textContent = "Add your Firebase config in firebase-config.js";
-  statusEl.classList.add("error");
+  showAuthError("Add your Firebase config in firebase-config.js");
 }
+
+document.getElementById("auth-signin").addEventListener("click", async () => {
+  authError.style.display = "none";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  if (!email || !password) {
+    showAuthError("Enter your email and password.");
+    return;
+  }
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    showAuthError(err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found"
+      ? "Wrong email or password."
+      : "Login failed: " + err.code);
+  }
+});
+
+document.getElementById("auth-signup").addEventListener("click", async () => {
+  authError.style.display = "none";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  if (!email || !password) {
+    showAuthError("Enter an email and password to create an account.");
+    return;
+  }
+  if (password.length < 6) {
+    showAuthError("Password needs to be at least 6 characters.");
+    return;
+  }
+  try {
+    await createUserWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    showAuthError(err.code === "auth/email-already-in-use"
+      ? "That email already has an account — try logging in instead."
+      : "Sign up failed: " + err.code);
+  }
+});
+
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  await signOut(auth);
+  emailInput.value = "";
+  passwordInput.value = "";
+});
 
 let entries = [];
 let pendingPhoto = null;
@@ -303,7 +434,7 @@ document.getElementById("f-date").value = todayStr();
 
 function listenToEntries() {
   const q = query(salesCol, orderBy("date", "desc"));
-  onSnapshot(q, (snap) => {
+  unsubscribeEntries = onSnapshot(q, (snap) => {
     entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     render();
   }, (err) => {
