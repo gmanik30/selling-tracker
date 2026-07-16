@@ -198,6 +198,27 @@
     font-size: 13px;
     padding: 24px 0;
   }
+  .group-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 18px 0 8px;
+    padding: 0 2px;
+  }
+  .group-header:first-child { margin-top: 0; }
+  .group-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: lowercase;
+    letter-spacing: 0.2px;
+  }
+  .group-title.tiddies { color: #f0a7c1; }
+  .group-title.gyatt { color: #f0a07b; }
+  .group-title.others { color: var(--text-secondary); }
+  .group-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
 </style>
 </head>
 <body>
@@ -307,27 +328,47 @@ function render() {
     return;
   }
 
-  list.innerHTML = entries.map((e) => {
-    const profit = Number(e.price || 0) - Number(e.cost || 0);
-    const thumb = e.photo ? `<img class="thumb" src="${e.photo}" />` : "";
-    return `
-      <div class="entry">
-        <div class="entry-left">
-          ${thumb}
-          <span class="badge ${bizClass(e.biz)}">${e.biz}</span>
-          <div style="min-width:0;">
-            <p class="entry-name">${e.item}</p>
-            <p class="entry-meta">${e.date || "no date"}${e.platform ? " · " + e.platform : ""}</p>
+  const groupOrder = ["tiddies.vtg", "gyatt.vtg", "others"];
+  const groupLabels = { "tiddies.vtg": "tiddies.vtg", "gyatt.vtg": "gyatt.vtg", "others": "others" };
+  const groups = {};
+  entries.forEach((e) => {
+    const key = groupOrder.includes(e.biz) ? e.biz : "others";
+    (groups[key] = groups[key] || []).push(e);
+  });
+
+  list.innerHTML = groupOrder
+    .filter((key) => groups[key] && groups[key].length)
+    .map((key) => {
+      const groupEntries = groups[key];
+      const groupTotal = groupEntries.reduce((s, e) => s + Number(e.price || 0), 0);
+      const rows = groupEntries.map((e) => {
+        const profit = Number(e.price || 0) - Number(e.cost || 0);
+        const thumb = e.photo ? `<img class="thumb" src="${e.photo}" />` : "";
+        return `
+          <div class="entry">
+            <div class="entry-left">
+              ${thumb}
+              <div style="min-width:0;">
+                <p class="entry-name">${e.item}</p>
+                <p class="entry-meta">${e.date || "no date"}${e.platform ? " · " + e.platform : ""}</p>
+              </div>
+            </div>
+            <div class="entry-right">
+              <p class="entry-price">${money(e.price)}</p>
+              <p class="entry-profit">profit ${money(profit)}</p>
+            </div>
+            <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
           </div>
+        `;
+      }).join("");
+      return `
+        <div class="group-header">
+          <span class="group-title ${bizClass(key)}">${groupLabels[key]}</span>
+          <span class="group-sub">${groupEntries.length} sold · ${money(groupTotal)}</span>
         </div>
-        <div class="entry-right">
-          <p class="entry-price">${money(e.price)}</p>
-          <p class="entry-profit">profit ${money(profit)}</p>
-        </div>
-        <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
-      </div>
-    `;
-  }).join("");
+        ${rows}
+      `;
+    }).join("");
 
   list.querySelectorAll(".del-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
