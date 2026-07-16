@@ -126,6 +126,16 @@
     border: none;
     font-weight: 600;
   }
+  input.field-error, select.field-error {
+    border-color: var(--coral);
+  }
+  #form-error {
+    display: none;
+    font-size: 12px;
+    color: var(--coral);
+    text-align: center;
+    margin: 8px 0 0;
+  }
   .entry {
     display: flex;
     align-items: center;
@@ -223,6 +233,7 @@
   </button>
   <input id="f-photo" type="file" accept="image/*" capture="environment" style="display:none;" />
   <button id="add-btn">Add entry</button>
+  <p id="form-error"></p>
 </div>
 
 <div id="list"></div>
@@ -363,10 +374,48 @@ document.getElementById("f-photo").addEventListener("change", async (ev) => {
   } catch (e) {}
 });
 
+const errorEl = document.getElementById("form-error");
+const itemInput = document.getElementById("f-item");
+const priceInput = document.getElementById("f-price");
+
+function showFieldError(input, message) {
+  document.querySelectorAll(".field-error").forEach((el) => el.classList.remove("field-error"));
+  input.classList.add("field-error");
+  errorEl.textContent = message;
+  errorEl.style.display = "block";
+  input.focus();
+}
+
+function clearFieldError() {
+  document.querySelectorAll(".field-error").forEach((el) => el.classList.remove("field-error"));
+  errorEl.style.display = "none";
+}
+
+itemInput.addEventListener("input", () => {
+  if (itemInput.classList.contains("field-error") && itemInput.value.trim()) clearFieldError();
+});
+priceInput.addEventListener("input", () => {
+  if (priceInput.classList.contains("field-error") && priceInput.value) clearFieldError();
+});
+
 document.getElementById("add-btn").addEventListener("click", async () => {
-  const item = document.getElementById("f-item").value.trim();
-  const price = document.getElementById("f-price").value;
-  if (!item || !price || !salesCol) return;
+  const item = itemInput.value.trim();
+  const price = priceInput.value;
+
+  if (!item) {
+    showFieldError(itemInput, "Please add the item name.");
+    return;
+  }
+  if (!price) {
+    showFieldError(priceInput, "Please add the sold price.");
+    return;
+  }
+  if (!salesCol) {
+    errorEl.textContent = "Still connecting — try again in a moment.";
+    errorEl.style.display = "block";
+    return;
+  }
+  clearFieldError();
 
   await addDoc(salesCol, {
     item,
@@ -379,8 +428,8 @@ document.getElementById("add-btn").addEventListener("click", async () => {
     createdAt: serverTimestamp()
   });
 
-  document.getElementById("f-item").value = "";
-  document.getElementById("f-price").value = "";
+  itemInput.value = "";
+  priceInput.value = "";
   document.getElementById("f-cost").value = "";
   document.getElementById("f-platform").value = "Booth";
   document.getElementById("f-date").value = todayStr();
